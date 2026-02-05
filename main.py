@@ -17,6 +17,7 @@ def open_fail(fail):
 
 def main(fail):
     fail_code = open_fail(fail)
+
     executor(fail_code)
     
 

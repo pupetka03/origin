@@ -5,83 +5,158 @@ from commands.advanced import commands
 type_u = ["int", "str"]
 variables = {}
 
-
-
 def test(tokens):
-    for line in tokens:
-        print(line)
+    for i, line in enumerate(tokens):
+        print(i, line)
+
+def create_variables(instr):
+    var = {
+        "type":'',
+        "name":'',
+        "value":'',
+    }
+
+   
+    znak = ''
+    for el in instr:
+        if el[1] == "int" or var["type"] == "int":
+            if el[1] == "int":
+                var['type'] = el[1]
+
+            elif el[0] == "ID" and el[1] not in variables:
+                var["name"] = el[1]
+            
+            elif (el[0] == "NUMBER") or (el[1] in variables):
+
+                if el[1] in variables:
+                    num = (variables[el[1]].const())
+                else:
+                    num = el[1]
+
+
+                if znak:
+                    value = var["value"]
+                    #print((f"{value} {znak} {num}"))
+                    new_value = eval(f"{value} {znak} {num}")
+                    var["value"] = (new_value)
+                else:
+                    var["value"] = num
+
+
+
+            elif el[0] == "OP":
+                if el[1] != "=":
+                    znak = el[1]
+        
+
+
+
+        if el[1] == "str" or var["type"] == "str":
+            if el[1] == "str":
+                var['type'] = el[1]
+
+            elif el[0] == "ID" and el[1] not in variables:
+                var["name"] = el[1]
+        
+            elif el[0] == "STRING" or el[1] in variables:
+                if el[1] in variables:
+                    string = (variables[el[1]].const())
+                else:
+                    string = (el[1])
+
+                if znak:
+                    if znak == "+":
+                        value = (var["value"])
+                        var["value"] = (value.strip('"') + string.strip('"')).strip()
+                    else:
+                        var["value"] = (el[1])
+                else:
+                    var["value"] = (el[1])
+
+            elif el[0] == "OP":
+                    if el[1] != "=":
+                        znak = el[1]
+
+
+
+
+    if not var["name"]:
+        return None
+    return var
+
+            
+
+def read_instruction(tokens, pos):
+    i = pos
+    instruc = []
+
+    while i < (len(tokens)):
+        token_type, token_value = tokens[i] 
+        instruc.append((token_type, token_value))
+
+        if token_type == "SEMICOL":
+            return instruc, i + 1
+
+
+        i += 1
+
+    return instruc, i
+
 
 def executor(file_name):
-
     result_of_terminale = ""
     tokens = parser(file_name)
 
-
-
-    
     i = 0
-    while i < len(tokens):
-        token_type, token_val = tokens[i]
+    while(i < len(tokens)):
+        instruction, i = read_instruction(tokens, i)
 
 
-        # Створення/оновлення змінної
-        if token_type == "ID" and token_val in type_u:
-            var_type = token_val
-            var_name = tokens[i + 1][1]
-            # tokens[i + 2] це "="
-            
-            # Перевіряємо що справа від "="
-            right_token_type = tokens[i + 3][0]
-            right_token_val = tokens[i + 3][1]
-            
-            # Якщо це команда типу type(x)
-            if right_token_type == "COMMAND":
-                cmd_name = right_token_val
-                cmd_arg = tokens[i + 5][1]  # токен всередині дужок
-                var_value = commands[cmd_name](cmd_arg, variables)
-                i += 7  # тип, назва, =, команда, (, аргумент, )
-            # Якщо це просте значення
-            else:
-                var_value = right_token_val
+        if not instruction:
+            continue
+
+
+        if instruction[0][1] in type_u:
+            variable = create_variables(instruction)
+
+            if variable is not None:
+                variables[variable["name"]] = Variables(
+                    variable["type"], 
+                    variable["name"], 
+                    variable["value"])
                 
-                # Конвертація типу
-                try:
-                    if var_type == 'int':
-                        var_value = int(var_value)
-                    elif var_type == 'str':
-                        var_value = str(var_value)
-                except ValueError:
-                    print(f"Origin invalid type error {var_type} is not {var_value}")
-                    return True
-                
-                i += 4  # тип, назва, =, значення
-            
-            # Створення/оновлення змінної
-            variables[var_name] = Variables(var_type, var_name, var_value)
+
         
-        # Виклик команди без присвоєння (print, тощо)
-        elif token_type == "COMMAND":
-            name = token_val
-            var = tokens[i + 2][1]
 
-            try:
-                tab = tokens[i + 4][1]
-            except:
-                tab = 0
-
-
+        elif instruction[0][0] == "COMMAND":
+            name = instruction[0][1]
+            var = instruction[2][1]
             result = commands[name](var, variables)
+            print(result)
 
-            if tab:
+
+            """
+            if tab == "BACKSLASH":
                 result_of_terminale += str(result) + "\n"
             else:
                 result_of_terminale += str(result)
 
+            """
+
+
+
             
 
-            i += 4  # команда, (, аргумент, )
         
-        else:
-            i += 1
 
-    print(result_of_terminale)
+
+
+
+            
+
+            
+
+
+        
+    
+

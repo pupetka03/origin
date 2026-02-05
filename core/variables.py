@@ -6,7 +6,7 @@ class Variables:
 
 
     def __repr__(self):
-        return f"Variables({self.type, self.name, self.contents})"
+        return f"Variables: {self.type, self.name, self.contents})"
 
 
 
@@ -16,5 +16,8 @@ class Variables:
     def print_type(self):
         return self.type
 
+
+    def const(self):
+        return self.contents
 
 

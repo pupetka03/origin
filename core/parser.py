@@ -12,7 +12,7 @@ token_spec = [
     ('RBRACE',   r'\}'),
     ('SEMICOL',  r';'),
     ('SKIP',     r'[ \t]+'),  # пробіли
-    ('NEWLINE',  r'\n')
+    ('BACKSLASH', r'\\'),
 ]
 
 COMMANDS = {
