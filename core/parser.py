@@ -27,6 +27,7 @@ COMMANDS = {
     "start",
     "change",
     "type",
+    "scan",
 }
 
 def parser(strings):

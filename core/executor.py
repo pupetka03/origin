@@ -31,8 +31,11 @@ def parse_value(tokens, start_pos):
                 pos += 1
             
             # Отримуємо аргумент
-            arg = tokens[pos][1]
-            pos += 1
+            arg = []
+            while tokens[pos][0] != "RPAREN":
+                line = tokens[pos]
+                arg.append(line)
+                pos += 1
             
             # Пропускаємо )
             if tokens[pos][0] == "RPAREN":
@@ -90,6 +93,14 @@ def create_variables(instr):
             i += 1
             # тут логіка AI
             value, next_pos = parse_value(instr, i)
+
+
+            if var["type"] == "int":
+                try:
+                    int(value) == int
+                except:
+                    TypeError
+            
             var["value"] = value
             i = next_pos
             continue
@@ -125,8 +136,7 @@ def executor(file_name):
     while(i < len(tokens)):
         instruction, i = read_instruction(tokens, i)
 
-
-
+        #test(instruction)
 
         if not instruction:
             continue
@@ -147,7 +157,7 @@ def executor(file_name):
         elif instruction[0][0] == "COMMAND":
             name = instruction[0][1]
             result = commands[name](instruction, variables)
-            print(result)
+            
 
 
 

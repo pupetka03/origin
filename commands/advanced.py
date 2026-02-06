@@ -1,11 +1,13 @@
 def type_v(var, variablese):
-    variabl = None
-    if var in variablese:
-        var_z = variablese[var]
+    if var[0][1] in variablese:
+        var_z = variablese[var[0][1]]
         return var_z.print_type()
     else:
-        return type(var)
-
+        try:
+            if int(var[0][1]):
+                return int
+        except:
+            return str
 
 def printf(var, variablese):
     result = ""
@@ -54,10 +56,27 @@ def printf(var, variablese):
 
         i += 1
 
-    return result
+    print(result)
+    return None
 
+def scanf(var, variablese):
+    type = None
+    for t in var:
+        if t[0] == "TYPE":
+            type = t[1]
+
+    if type == "int":
+        try:
+            return int(input())
+        except ValueError:
+            return SyntaxError
+    elif type == "str":
+        return (input())
+    
+        
 
 commands =  {
     'type': type_v,
     'print': printf, 
+    'scan': scanf,
 }

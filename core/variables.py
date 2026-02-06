@@ -12,9 +12,14 @@ class Variables:
 
     def print_value(self):
         return (self.contents)
+
     
     def print_type(self):
-        return self.type
+        if self.type == "int":
+            return "<class 'int'>"
+        elif self.type == "str":
+            if self.type == "int":
+                return "<class 'int'>"
 
 
     def const(self):
