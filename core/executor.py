@@ -9,95 +9,97 @@ def test(tokens):
     for i in (tokens):
         print(i)
 
+def parse_value(tokens, start_pos):
+    """
+    Парсить значення (вираз справа від =)
+    Повертає: (value, next_position)
+    """
+    pos = start_pos
+
+
+    # Перевіряємо чи це функція/команда
+    if tokens[pos][0] == "LPAREN":
+        # Пропускаємо (
+        pos += 1
+        
+        if tokens[pos][0] == "COMMAND":
+            command_name = tokens[pos][1]
+            pos += 1
+            
+            # Пропускаємо (
+            if tokens[pos][0] == "LPAREN":
+                pos += 1
+            
+            # Отримуємо аргумент
+            arg = tokens[pos][1]
+            pos += 1
+            
+            # Пропускаємо )
+            if tokens[pos][0] == "RPAREN":
+                pos += 1
+            
+            # Пропускаємо зовнішню )
+            if tokens[pos][0] == "RPAREN":
+                pos += 1
+            
+            # Виконуємо команду
+            from commands.advanced import commands
+            result = commands[command_name](arg, variables)
+            return result, pos
+    
+    # Якщо це просте число
+    elif tokens[pos][0] == "NUMBER":
+        return tokens[pos][1], pos + 1
+    
+    # Якщо це рядок
+    elif tokens[pos][0] == "STRING":
+        return tokens[pos][1], pos + 1
+    
+    # Якщо це змінна
+    elif tokens[pos][0] == "ID" and tokens[pos][1] in variables:
+        return variables[tokens[pos][1]].const(), pos + 1
+    
+    return None, pos
+
+
 def create_variables(instr):
     var = {
-        "type":'',
-        "name":'',
-        "value":'',
-    }
-
-   
-    znak = ''
-    command = ''
-    for el in instr:
-        if el[0] == "TYPE" and el[1] == "int" or var["type"] == "int":
-            if el[1] == "int":
-                var['type'] = el[1]
-
-            elif el[0] == "ID":
-                var["name"] = el[1]
-            
-            elif (el[0] == "NUMBER") or (el[1] in variables):
-
-                if el[1] in variables:
-                    num = (variables[el[1]].const())
-                else:
-                    num = el[1]
-
-
-                if znak:
-                    value = var["value"]
-                    #print((f"{value} {znak} {num}"))
-                    new_value = eval(f"{value} {znak} {num}")
-                    var["value"] = (new_value)
-                else:
-                    var["value"] = num
-
-
-
-            elif el[0] == "OP":
-                if el[1] != "=":
-                    znak = el[1]
+        "type": '', 
+        "name": '', 
+        "value": '',
+        }
+    
+    i = 0
+    while i < len(instr):
+        el = instr[i]
         
-
-
-
-        if el[0] == "TYPE" and el[1] == "str" or var["type"] == "str":
-            if el[1] == "str":
-                var['type'] = el[1]
-
-            elif el[0] == "ID":
-                var["name"] = el[1]
+        # Отримуємо тип
+        if el[0] == "TYPE":
+            var['type'] = el[1]
+            i += 1
+            continue
         
-            elif el[0] == "STRING" or el[1] in variables:
-                if el[1] in variables:
-                    string = (variables[el[1]].const())
-                else:
-                    string = (el[1])
-
-                if znak:
-                    if znak == "+":
-                        value = (var["value"])
-                        var["value"] = (value.strip('"') + string.strip('"')).strip()
-                    else:
-                        var["value"] = (el[1])
-                elif command:
-                    result = commands[command](el[1], variables)
-                    var["value"] = result
-                    command = ''
-                else:
-                    var["value"] = (el[1])
-
-            elif el[0] == "OP":
-                    if el[1] != "=":
-                        znak = el[1]
-
-            elif el[0] == "COMMAND":
-                command = el[1]
-
-
-       
-            
-
-
+        # Отримуємо ім'я
+        if el[0] == "ID" and not var["name"]:
+            var["name"] = el[1]
+            i += 1
+            continue
+        
+        # Знак =
+        if el[0] == "OP" and el[1] == "=":
+            i += 1
+            # тут логіка AI
+            value, next_pos = parse_value(instr, i)
+            var["value"] = value
+            i = next_pos
+            continue
+        
+        i += 1
+    
     if not var["name"]:
         return None
     
-
-
-    return var
-
-            
+    return var         
 
 def read_instruction(tokens, pos):
     i = pos
@@ -123,7 +125,7 @@ def executor(file_name):
     while(i < len(tokens)):
         instruction, i = read_instruction(tokens, i)
 
-        test(instruction)
+
 
 
         if not instruction:
