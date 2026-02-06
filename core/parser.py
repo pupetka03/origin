@@ -2,18 +2,21 @@ import re
 
 
 token_spec = [
-    ('NUMBER',   r'\d+'),
-    ('STRING',   r'"[^"]*"'),
-    ('ID',       r'[A-Za-z_]\w*'),
-    ('OP',       r'[\+\-\*\/=]'),
-    ('LPAREN',   r'\('),
-    ('RPAREN',   r'\)'),
-    ('LBRACE',   r'\{'),
-    ('RBRACE',   r'\}'),
-    ('SEMICOL',  r';'),
-    ('SKIP',     r'[ \t]+'),  # пробіли
+    ('NUMBER',    r'\d+'),
+    ('STRING',    r'"[^"]*"'),
+    ('ID',        r'[A-Za-z_]\w*'),
+    ('OP',        r'[\+\-\*\/=]'),
+    ('LPAREN',    r'\('),
+    ('RPAREN',    r'\)'),
+    ('LBRACE',    r'\{'),
+    ('RBRACE',    r'\}'),
+    ('SEMICOL',   r';'),
+    ('COMMA',     r','),        # 👈 ОЦЕ ВОНО
+    ('SKIP',      r'[ \t]+'),   # пробіли
     ('BACKSLASH', r'\\'),
 ]
+
+TYPES = {"int", "str", "bool", "float"}  
 
 COMMANDS = {
     "print",
@@ -42,8 +45,13 @@ def parser(strings):
                     text = m.group(0)
 
                     # 👇 ОСЬ ТУТ МАГІЯ
-                    if tok_type == "ID" and text in COMMANDS:
-                        tokens.append(("COMMAND", text))
+                    if tok_type == "ID":
+                        if text in TYPES:
+                            tokens.append(("TYPE", text))
+                        elif text in COMMANDS:
+                            tokens.append(("COMMAND", text))
+                        else:
+                            tokens.append(("ID", text))
                     elif tok_type not in ('SKIP', 'NEWLINE'):
                         tokens.append((tok_type, text))
 

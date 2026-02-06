@@ -6,8 +6,8 @@ type_u = ["int", "str"]
 variables = {}
 
 def test(tokens):
-    for i, line in enumerate(tokens):
-        print(i, line)
+    for i in (tokens):
+        print(i)
 
 def create_variables(instr):
     var = {
@@ -18,12 +18,13 @@ def create_variables(instr):
 
    
     znak = ''
+    command = ''
     for el in instr:
-        if el[1] == "int" or var["type"] == "int":
+        if el[0] == "TYPE" and el[1] == "int" or var["type"] == "int":
             if el[1] == "int":
                 var['type'] = el[1]
 
-            elif el[0] == "ID" and el[1] not in variables:
+            elif el[0] == "ID":
                 var["name"] = el[1]
             
             elif (el[0] == "NUMBER") or (el[1] in variables):
@@ -51,11 +52,11 @@ def create_variables(instr):
 
 
 
-        if el[1] == "str" or var["type"] == "str":
+        if el[0] == "TYPE" and el[1] == "str" or var["type"] == "str":
             if el[1] == "str":
                 var['type'] = el[1]
 
-            elif el[0] == "ID" and el[1] not in variables:
+            elif el[0] == "ID":
                 var["name"] = el[1]
         
             elif el[0] == "STRING" or el[1] in variables:
@@ -70,6 +71,10 @@ def create_variables(instr):
                         var["value"] = (value.strip('"') + string.strip('"')).strip()
                     else:
                         var["value"] = (el[1])
+                elif command:
+                    result = commands[command](el[1], variables)
+                    var["value"] = result
+                    command = ''
                 else:
                     var["value"] = (el[1])
 
@@ -77,11 +82,19 @@ def create_variables(instr):
                     if el[1] != "=":
                         znak = el[1]
 
+            elif el[0] == "COMMAND":
+                command = el[1]
 
+
+       
+            
 
 
     if not var["name"]:
         return None
+    
+
+
     return var
 
             
@@ -104,12 +117,13 @@ def read_instruction(tokens, pos):
 
 
 def executor(file_name):
-    result_of_terminale = ""
     tokens = parser(file_name)
 
     i = 0
     while(i < len(tokens)):
         instruction, i = read_instruction(tokens, i)
+
+        test(instruction)
 
 
         if not instruction:
@@ -130,33 +144,8 @@ def executor(file_name):
 
         elif instruction[0][0] == "COMMAND":
             name = instruction[0][1]
-            var = instruction[2][1]
-            result = commands[name](var, variables)
+            result = commands[name](instruction, variables)
             print(result)
 
 
-            """
-            if tab == "BACKSLASH":
-                result_of_terminale += str(result) + "\n"
-            else:
-                result_of_terminale += str(result)
-
-            """
-
-
-
-            
-
-        
-
-
-
-
-            
-
-            
-
-
-        
-    
 
