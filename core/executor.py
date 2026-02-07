@@ -16,6 +16,9 @@ def parse_value(tokens, start_pos):
     """
     pos = start_pos
 
+    if tokens[pos][0] == "LBRACE":
+        return parse_expression_block(tokens, pos)
+
 
     # Перевіряємо чи це функція/команда
     if tokens[pos][0] == "LPAREN":
@@ -63,6 +66,60 @@ def parse_value(tokens, start_pos):
         return variables[tokens[pos][1]].const(), pos + 1
     
     return None, pos
+
+def parse_expression_block(tokens, start_pos):
+    pos = start_pos
+    
+    # Пропускаємо {
+    if tokens[pos][0] == "LBRACE":
+        pos += 1
+    
+    expr_parts = []  # Збираємо вираз для eval
+    
+    while tokens[pos][0] != "RBRACE":
+        token_type, token_value = tokens[pos]
+        
+        # Якщо це вкладений виклик команди (scan(int))
+        if token_type == "LPAREN" and pos + 1 < len(tokens) and tokens[pos + 1][0] == "COMMAND":
+            # Парсимо вкладену команду
+            value, new_pos = parse_value(tokens, pos)
+            expr_parts.append(str(value))
+            pos = new_pos
+            continue
+        
+        # Якщо це число
+        elif token_type == "NUMBER":
+            expr_parts.append(token_value)
+        
+        # Якщо це змінна
+        elif token_type == "ID":
+            if token_value in variables:
+                expr_parts.append(str(variables[token_value].const()))
+            else:
+                raise NameError(f"Змінна '{token_value}' не існує")
+        
+        # Якщо це оператор
+        elif token_type == "OP":
+            expr_parts.append(token_value)
+        
+        # Пропускаємо дужки (вони вже оброблені)
+        elif token_type in ["LPAREN", "RPAREN"]:
+            pass
+        
+        pos += 1
+    
+    # Пропускаємо }
+    if tokens[pos][0] == "RBRACE":
+        pos += 1
+    
+    # Обчислюємо вираз
+    expression = " ".join(expr_parts)
+    
+    try:
+        result = eval(expression)
+        return result, pos
+    except Exception as e:
+        raise SyntaxError(f"Помилка в обчисленні '{expression}': {e}")
 
 
 def create_variables(instr):
