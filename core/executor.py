@@ -1,220 +1,87 @@
-from core.variables import Variables
+from variables.variables import Variables
 from core.parser import parser
 from commands.advanced import commands
+from variables.factory import create_variables
+from core.runtime import memory
 
 type_u = ["int", "str"]
-variables = {}
 
-def test(tokens):
-    for i in (tokens):
-        print(i)
-
-def parse_value(tokens, start_pos):
-    """
-    Парсить значення (вираз справа від =)
-    Повертає: (value, next_position)
-    """
-    pos = start_pos
-
-    if tokens[pos][0] == "LBRACE":
-        return parse_expression_block(tokens, pos)
-
-
-    # Перевіряємо чи це функція/команда
-    if tokens[pos][0] == "LPAREN":
-        # Пропускаємо (
-        pos += 1
-        
-        if tokens[pos][0] == "COMMAND":
-            command_name = tokens[pos][1]
-            pos += 1
+def read_block_instruction(tokens, pos):
+    i = pos
+    instruc = []
+    
+    # Перевіряємо чи це for (без start/end глибини)
+    if tokens[pos][1] == "for":
+        while i < len(tokens):
+            token_type, token_value = tokens[i]
+            instruc.append((token_type, token_value))
             
-            # Пропускаємо (
-            if tokens[pos][0] == "LPAREN":
-                pos += 1
-            
-            # Отримуємо аргумент
-            arg = []
-            while tokens[pos][0] != "RPAREN":
-                line = tokens[pos]
-                arg.append(line)
-                pos += 1
-            
-            # Пропускаємо )
-            if tokens[pos][0] == "RPAREN":
-                pos += 1
-            
-            # Пропускаємо зовнішню )
-            if tokens[pos][0] == "RPAREN":
-                pos += 1
-            
-            # Виконуємо команду
-            from commands.advanced import commands
-            result = commands[command_name](arg, variables)
-            return result, pos
-    
-    # Якщо це просте число
-    elif tokens[pos][0] == "NUMBER":
-        return tokens[pos][1], pos + 1
-    
-    # Якщо це рядок
-    elif tokens[pos][0] == "STRING":
-        return tokens[pos][1], pos + 1
-    
-    # Якщо це змінна
-    elif tokens[pos][0] == "ID" and tokens[pos][1] in variables:
-        return variables[tokens[pos][1]].const(), pos + 1
-    
-    return None, pos
-
-def parse_expression_block(tokens, start_pos):
-    pos = start_pos
-    
-    # Пропускаємо {
-    if tokens[pos][0] == "LBRACE":
-        pos += 1
-    
-    expr_parts = []  # Збираємо вираз для eval
-    
-    while tokens[pos][0] != "RBRACE":
-        token_type, token_value = tokens[pos]
-        
-        # Якщо це вкладений виклик команди (scan(int))
-        if token_type == "LPAREN" and pos + 1 < len(tokens) and tokens[pos + 1][0] == "COMMAND":
-            # Парсимо вкладену команду
-            value, new_pos = parse_value(tokens, pos)
-            expr_parts.append(str(value))
-            pos = new_pos
-            continue
-        
-        # Якщо це число
-        elif token_type == "NUMBER":
-            expr_parts.append(token_value)
-        
-        # Якщо це змінна
-        elif token_type == "ID":
-            if token_value in variables:
-                expr_parts.append(str(variables[token_value].const()))
-            else:
-                raise NameError(f"Змінна '{token_value}' не існує")
-        
-        # Якщо це оператор
-        elif token_type == "OP":
-            expr_parts.append(token_value)
-        
-        # Пропускаємо дужки (вони вже оброблені)
-        elif token_type in ["LPAREN", "RPAREN"]:
-            pass
-        
-        pos += 1
-    
-    # Пропускаємо }
-    if tokens[pos][0] == "RBRACE":
-        pos += 1
-    
-    # Обчислюємо вираз
-    expression = " ".join(expr_parts)
-    
-    try:
-        result = eval(expression)
-        return result, pos
-    except Exception as e:
-        raise SyntaxError(f"Помилка в обчисленні '{expression}': {e}")
-
-
-def create_variables(instr):
-    var = {
-        "type": '', 
-        "name": '', 
-        "value": '',
-        }
-    
-    i = 0
-    while i < len(instr):
-        el = instr[i]
-        
-        # Отримуємо тип
-        if el[0] == "TYPE":
-            var['type'] = el[1]
+            # Для for зупиняємось на end;
+            if token_type == "COMMAND" and token_value == "end":
+                i += 1
+                if i < len(tokens) and tokens[i][0] == "SEMICOL":
+                    instruc.append(tokens[i])
+                    i += 1
+                return instruc, i  
             i += 1
-            continue
+    
+    # Для інших команд (if, while, func) - стара логіка з depth
+    depth = 0
+    while i < len(tokens):
+        token_type, token_value = tokens[i]
+        instruc.append((token_type, token_value))
         
-        # Отримуємо ім'я
-        if el[0] == "ID" and not var["name"]:
-            var["name"] = el[1]
-            i += 1
-            continue
-        
-        # Знак =
-        if el[0] == "OP" and el[1] == "=":
-            i += 1
-            # тут логіка AI
-            value, next_pos = parse_value(instr, i)
-
-
-            if var["type"] == "int":
-                try:
-                    int(value) == int
-                except:
-                    TypeError
-            
-            var["value"] = value
-            i = next_pos
-            continue
-        
+        if token_type == "COMMAND" and token_value == "start":
+            depth += 1
+        elif token_type == "COMMAND" and token_value == "end":
+            depth -= 1
+            if depth == 0:
+                i += 1
+                if i < len(tokens) and tokens[i][0] == "SEMICOL":
+                    instruc.append(tokens[i])
+                    i += 1
+                return instruc, i
         i += 1
     
-    if not var["name"]:
-        return None
-    
-    return var         
+    return instruc, i
 
 def read_instruction(tokens, pos):
     i = pos
     instruc = []
-
+    if i < len(tokens) and tokens[i][0] == "COMMAND":
+        command_name = tokens[i][1]
+        if command_name in ["for", "if", "while", "func"]:
+            return read_block_instruction(tokens, pos)
+    
     while i < (len(tokens)):
         token_type, token_value = tokens[i] 
         instruc.append((token_type, token_value))
-
         if token_type == "SEMICOL":
             return instruc, i + 1
-
-
         i += 1
-
     return instruc, i
+
+def execute_tokens(tokens):
+    """Виконує вже розпарсені токени"""
+    i = 0
+    while(i < len(tokens)):
+        instruction, i = read_instruction(tokens, i)
+        if not instruction:
+            continue
+        
+        if instruction[0][1] in type_u:
+            variable = create_variables(instruction)
+            if variable is not None:
+                memory.declare(
+                    variable["type"], 
+                    variable["name"], 
+                    variable["value"]
+                )
+        elif instruction[0][0] == "COMMAND":
+            name = instruction[0][1]
+            result = commands[name](instruction)
 
 
 def executor(file_name):
     tokens = parser(file_name)
-
-    i = 0
-    while(i < len(tokens)):
-        instruction, i = read_instruction(tokens, i)
-
-        #test(instruction)
-
-        if not instruction:
-            continue
-
-
-        if instruction[0][1] in type_u:
-            variable = create_variables(instruction)
-
-            if variable is not None:
-                variables[variable["name"]] = Variables(
-                    variable["type"], 
-                    variable["name"], 
-                    variable["value"])
-                
-
-        
-
-        elif instruction[0][0] == "COMMAND":
-            name = instruction[0][1]
-            result = commands[name](instruction, variables)
-            
-
-
-
+    execute_tokens(tokens)

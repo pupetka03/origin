@@ -5,14 +5,14 @@ token_spec = [
     ('NUMBER',    r'\d+'),
     ('STRING',    r'"[^"]*"'),
     ('ID',        r'[A-Za-z_]\w*'),
-    ('OP',        r'[\+\-\*\/=]'),
+    ('OP',        r'<=|>=|==|!=|[+\-*/=<>]'),
     ('LPAREN',    r'\('),
     ('RPAREN',    r'\)'),
     ('LBRACE',    r'\{'),
     ('RBRACE',    r'\}'),
     ('SEMICOL',   r';'),
-    ('COMMA',     r','),        # 👈 ОЦЕ ВОНО
-    ('SKIP',      r'[ \t]+'),   # пробіли
+    ('COMMA',     r','),
+    ('SKIP',      r'[ \t]+'),
     ('BACKSLASH', r'\\'),
 ]
 
@@ -28,6 +28,10 @@ COMMANDS = {
     "change",
     "type",
     "scan",
+    "for",
+    "to",
+    "from",
+    "end",
 }
 
 def parser(strings):
