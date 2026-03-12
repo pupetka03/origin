@@ -14,9 +14,8 @@ class Variables:
     def print_type(self):
         if self.type == "int":
             return "<class 'int'>"
-        elif self.type == "str":
-            if self.type == "int":
-                return "<class 'int'>"
+        elif self.type == "str": 
+            return "<class 'str'>"
 
 
     def const(self):

@@ -23,22 +23,18 @@ def printf(var):
         if token_type == "SEMICOL":
             break
 
-        # звичайний string
         if token_type == "STRING":
             result += token_value.strip('"')
 
-        # змінна
         elif token_type == "ID":
             if token_value in memory.variables:
                 result += (str(memory.variables[token_value].const()).strip('"'))
             else:
                 result += token_value
 
-        # число
         elif token_type == "NUMBER":
             result += token_value
 
-        # вираз у фігурних дужках { x + 5 }
         elif token_type == "LBRACE":
             expr = ""
             i += 1
@@ -49,7 +45,6 @@ def printf(var):
                 else:
                     expr += t_val
                 i += 1
-
             try:
                 result += str(eval(expr))
             except Exception:
@@ -80,96 +75,127 @@ def scanf(var):
 def forf(var):
     from core.executor import execute_tokens
 
-    
+    def eval_condition(a, op, b):
+        if op == "<":  return a < b
+        if op == ">":  return a > b
+        if op == "==": return a == b
+        if op == "<=": return a <= b
+        if op == ">=": return a >= b
+        return False
 
-    def eval_condition(var, op, value):
-        if op == "<":
-            return var < value
-        if op == ">":
-            return var > value
-        if op == "==":
-            return var == value
-    
-    def read_for(instruct, i):
-        pos = i
-        obj = []
-        while pos < len(instruct) and (instruct[pos][0] != "COMMA"):
-            token_type, token_value = instruct[pos]
-            if token_value == "end":
-                return obj, pos
-            obj.append((token_type, token_value))
-            pos += 1
-        return obj, pos
-        
-    pos = 0
-    instruc_for = []
-    while pos < len(var):
-        obj, i = read_for(var, pos)
-        instruc_for.append((obj))
-        pos = i + 1
+    def split_for_sections(tokens):
+        """
+        Розбиває токени for на 4 секції по COMMA верхнього рівня:
+          [0] init      — int i = 0
+          [1] condition — i < 10
+          [2] update    — int i = {i + 1}
+          [3] body      — всі інструкції до end
 
-    #init
-    if instruc_for[0][2][1] not in memory.variables:
-        obj = create_variables(instruc_for[0])
-        memory.declare(
-            obj["type"],
-            obj["name"],
-            obj["value"],
-        )
+        COMMA всередині {} або вкладених for ігноруються.
+        """
+        sections = []
+        current = []
+        depth_brace = 0   # глибина { }
+        depth_for   = 0   # глибина вкладених for
+
+        i = 0
+        # Пропускаємо перший токен — це сам "for" COMMAND
+        if tokens and tokens[0] == ("COMMAND", "for"):
+            i = 1
+
+        while i < len(tokens):
+            tok_type, tok_val = tokens[i]
+
+            # Рахуємо дужки { }
+            if tok_type == "LBRACE":
+                depth_brace += 1
+            elif tok_type == "RBRACE":
+                depth_brace -= 1
+
+            # Рахуємо вкладені for / end
+            if tok_type == "COMMAND" and tok_val == "for":
+                depth_for += 1
+            elif tok_type == "COMMAND" and tok_val == "end":
+                if depth_for > 0:
+                    depth_for -= 1
+                else:
+                    # Це "end" нашого for — кінець тіла
+                    sections.append(current)
+                    current = []
+                    break
+
+            # COMMA верхнього рівня — роздільник секцій (тільки перші 3)
+            if tok_type == "COMMA" and depth_brace == 0 and depth_for == 0 and len(sections) < 3:
+                sections.append(current)
+                current = []
+                i += 1
+                continue
+
+            current.append((tok_type, tok_val))
+            i += 1
+
+        # Якщо тіло не було закрите через end (на випадок помилки)
+        if current:
+            sections.append(current)
+
+        return sections
+
+    def get_condition_value(token):
+        """Повертає числове значення токена (змінна або число)"""
+        tok_type, tok_val = token
+        if tok_type == "ID":
+            return int(memory.variables[tok_val].const())
+        elif tok_type == "NUMBER":
+            return int(tok_val)
+        raise ValueError(f"Невідомий токен в умові: {token}")
+
+    # --- Розбиваємо на секції ---
+    sections = split_for_sections(var)
+
+    if len(sections) < 4:
+        raise SyntaxError(f"for: очікується 4 секції, отримано {len(sections)}")
+
+    init_tokens      = sections[0]  # int i = 0
+    condition_tokens = sections[1]  # i < 10
+    update_tokens    = sections[2]  # int i = {i + 1}
+    body_tokens      = sections[3]  # тіло
+
+    # --- Ініціалізація ---
+    # Визначаємо ім'я змінної (3-й токен: TYPE ID OP VALUE)
+    var_name = init_tokens[1][1] if len(init_tokens) > 1 else None
 
 
+    obj = create_variables(init_tokens)
+    memory.declare(obj["type"], obj["name"], obj["value"])
+
+    # --- Розбираємо умову ---
+    # Формат: ID/NUMBER  OP  ID/NUMBER
+    if len(condition_tokens) < 3:
+        raise SyntaxError("for: некоректна умова")
+
+    cond_left_tok  = condition_tokens[0]
+    cond_op        = condition_tokens[1][1]
+    cond_right_tok = condition_tokens[2]
+
+    def check_condition():
+        left  = get_condition_value(cond_left_tok)
+        right = get_condition_value(cond_right_tok)
+        return eval_condition(left, cond_op, right)
+
+    # --- Оновлення змінної ---
     def update_var():
-        var_data = create_variables(instruc_for[2])
-        memory.declare(
-            var_data["type"],
-            var_data["name"],
-            var_data["value"],
-        )
+        var_data = create_variables(update_tokens)
+        memory.declare(var_data["type"], var_data["name"], var_data["value"])
 
-    def get_const_var_2(name):
-        if name[0] == "ID":
-            return memory.variables[name[1]].const()
-        elif name[0] == "NUMBER":
-            return name[1]
-
-    #condition
-    condition = instruc_for[1][1][1]
-    const_var = instruc_for[1][0][1]
-
-    const_var_2 = get_const_var_2(instruc_for[1][2])
-
-    
-    while (eval_condition(int(memory.variables[const_var].const()), condition, int(const_var_2))):
-        execute_tokens(instruc_for[3])
+    # --- Цикл ---
+    while check_condition():
+        execute_tokens(body_tokens)
         update_var()
 
 
-    """""
-        obj, i = read_for(var, pos)
-        token_type, token_value = var[pos]
-
-        if token_type == "COMMAND" and token_value == "for":
-            pos += 1
-            continue
-
-        elif token_type == "TYPE":
-            if pos + 1 < len(var) and var[pos + 1][1] not in memory.variables:
-                var_data = create_variables(obj)
-                memory.declare(
-                    var_data["type"],
-                    var_data["name"],
-                    var_data["value"]
-                )
-                pos += i  
-                continue 
-
-    """""
-        
-
-
-commands =  {
-    'type': type_v,
-    'print': printf, 
-    'scan': scanf,
-    'for':forf,
+commands = {
+    'type':  type_v,
+    'print': printf,
+    'scan':  scanf,
+    'for':   forf,
 }
