@@ -1,43 +1,24 @@
-from variables.variables import Variables
-from core.parser import parser
 from commands.advanced import commands
-from variables.factory import create_variables
+from core.errors import OriginSyntaxError
+from core.parser import parser
 from core.runtime import memory
+from variables.factory import create_variables
+
 
 type_u = ["int", "str"]
+
 
 def read_block_instruction(tokens, pos):
     i = pos
     instruc = []
-
-    if tokens[pos][1] == "for":
-        depth = 0  # ← ДОДАНО: рахуємо вкладеність
-        while i < len(tokens):
-            token_type, token_value = tokens[i]
-            instruc.append((token_type, token_value))
-
-            if token_type == "COMMAND" and token_value == "for":
-                depth += 1  # ← входимо у вкладений for
-
-            elif token_type == "COMMAND" and token_value == "end":
-                depth -= 1  # ← виходимо з одного рівня
-                if depth == 0:  # ← тільки якщо це "end" зовнішнього for
-                    i += 1
-                    if i < len(tokens) and tokens[i][0] == "SEMICOL":
-                        instruc.append(tokens[i])
-                        i += 1
-                    return instruc, i
-
-            i += 1
-        return instruc, i
-
-    # Для інших команд (if, while, func) — стара логіка з depth
     depth = 0
+    block_commands = {"for", "if", "while", "func"}
+
     while i < len(tokens):
         token_type, token_value = tokens[i]
         instruc.append((token_type, token_value))
 
-        if token_type == "COMMAND" and token_value == "start":
+        if token_type == "COMMAND" and token_value in block_commands:
             depth += 1
         elif token_type == "COMMAND" and token_value == "end":
             depth -= 1
@@ -79,18 +60,20 @@ def execute_tokens(tokens):
         if not instruction:
             continue
 
-        if instruction[0][1] in type_u:
-            variable = create_variables(instruction)
-            if variable is not None:
-                memory.declare(
-                    variable["type"],
-                    variable["name"],
-                    variable["value"]
-                )
+        first_type, first_value = instruction[0]
 
-        elif instruction[0][0] == "COMMAND":
-            name = instruction[0][1]
-            result = commands[name](instruction)
+        if first_type == "TYPE" and first_value in type_u:
+            variable = create_variables(instruction)
+            memory.declare(variable["type"], variable["name"], variable["value"])
+            continue
+
+        if first_type == "COMMAND":
+            if first_value not in commands:
+                raise OriginSyntaxError(f"Команда '{first_value}' ще не підтримується")
+            commands[first_value](instruction)
+            continue
+
+        raise OriginSyntaxError(f"Некоректна інструкція: {instruction}")
 
 
 def executor(file_name):

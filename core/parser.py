@@ -1,22 +1,24 @@
 import re
 
+from core.errors import OriginSyntaxError
+
 
 token_spec = [
-    ('NUMBER',    r'\d+'),
-    ('STRING',    r'"[^"]*"'),
-    ('ID',        r'[A-Za-z_]\w*'),
-    ('OP',        r'<=|>=|==|!=|[+\-*/=<>]'),
-    ('LPAREN',    r'\('),
-    ('RPAREN',    r'\)'),
-    ('LBRACE',    r'\{'),
-    ('RBRACE',    r'\}'),
-    ('SEMICOL',   r';'),
-    ('COMMA',     r','),
-    ('SKIP',      r'[ \t]+'),
+    ('NUMBER', r'\d+'),
+    ('STRING', r'"[^"]*"'),
+    ('ID', r'[A-Za-z_]\w*'),
+    ('OP', r'<=|>=|==|!=|[+\-*/=<>]'),
+    ('LPAREN', r'\('),
+    ('RPAREN', r'\)'),
+    ('LBRACE', r'\{'),
+    ('RBRACE', r'\}'),
+    ('SEMICOL', r';'),
+    ('COMMA', r','),
+    ('SKIP', r'[ \t]+'),
     ('BACKSLASH', r'\\'),
 ]
 
-TYPES = {"int", "str", "bool", "float"}  
+TYPES = {"int", "str", "bool", "float"}
 
 COMMANDS = {
     "print",
@@ -28,11 +30,11 @@ COMMANDS = {
     "change",
     "type",
     "scan",
-    "for",
     "to",
     "from",
     "end",
 }
+
 
 def parser(strings):
     tokens = []
@@ -49,7 +51,6 @@ def parser(strings):
                 if m:
                     text = m.group(0)
 
-                    # 👇 ОСЬ ТУТ МАГІЯ
                     if tok_type == "ID":
                         if text in TYPES:
                             tokens.append(("TYPE", text))
@@ -57,7 +58,7 @@ def parser(strings):
                             tokens.append(("COMMAND", text))
                         else:
                             tokens.append(("ID", text))
-                    elif tok_type not in ('SKIP', 'NEWLINE'):
+                    elif tok_type != 'SKIP':
                         tokens.append((tok_type, text))
 
                     pos = m.end(0)
@@ -65,9 +66,6 @@ def parser(strings):
                     break
 
             if not match:
-                raise Exception(f"Невідомий символ: {line[pos]}")
+                raise OriginSyntaxError(f"Невідомий символ: {line[pos]}")
 
     return tokens
-
-
-

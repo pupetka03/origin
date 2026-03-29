@@ -1,4 +1,6 @@
+from core.errors import OriginNameError
 from variables.variables import Variables
+
 
 class Memory:
     def __init__(self):
@@ -9,10 +11,10 @@ class Memory:
 
     def get(self, name):
         if name not in self.variables:
-            raise NameError(f"Змінна '{name}' не існує")
+            raise OriginNameError(f"Змінна '{name}' не існує")
         return self.variables[name]
 
     def set(self, name, value):
         if name not in self.variables:
-            raise NameError(f"Змінна '{name}' не існує")
+            raise OriginNameError(f"Змінна '{name}' не існує")
         self.variables[name].set(value)

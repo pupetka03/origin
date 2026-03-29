@@ -75,7 +75,43 @@ The returned value is stored as a string.
 
 ⸻
 
-5. Loops
+5. Conditional Execution
+
+If Block
+
+The if statement executes its body only when the condition is true.
+
+if x < 10 start
+    print("small");
+end;
+
+If Else Block
+
+You can add an else branch for the false case.
+
+if x < 10 start
+    print("small");
+else
+    print("big");
+end;
+
+You can also use expressions inside {} and compare strings:
+
+if {x + 2} == 7 start
+    print("match");
+else
+    print("no match");
+end;
+
+if name == "Ihor" start
+    print("hello");
+end;
+
+The block starts with start, else is optional, and the full construction must finish with end;.
+
+⸻
+
+6. Loops
 
 For Loop
 
@@ -98,13 +134,14 @@ for int i = 0, i < x, int i = {i + 1}, print({i}); end;
 
 ⸻
 
-6. Important Rules (Short Version)
+7. Important Rules (Short Version)
 	•	Every statement must end with ;
 	•	Variables must always declare type, even on reassignment
 	•	int supports all real numbers
 	•	{} inside print forces evaluation
 	•	Spaces in print are controlled by \, commas are not allowed
 	•	For loops require explicit init, condition, and step with type keywords
+	•	If blocks require condition + start ... end;
 
 ⸻
 
