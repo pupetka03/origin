@@ -1,319 +1,136 @@
-# Origin
+# Origin v0.1 🚀
 
-Origin is an experimental interpreted programming language written in Python. The project currently includes a tokenizer, a token-based executor, a small runtime, custom language-level errors, and a CLI entrypoint.
+Origin — це експериментальна інтерпретована мова програмування з відкритим кодом, написана на Python. Вона поєднує строгу типізацію з гнучкістю динамічного перепризначення типів.
 
-## Current State
+## 🛠 Як запустити
 
-Implemented now:
-- variable declarations with explicit types
-- built-in types `int` and `str`
-- `print`
-- `type()`
-- `scan()`
-- `if ... start ... end;`
-- `if ... start ... else ... end;`
-- `for`
-- expressions inside `{}`
-- custom language errors instead of raw Python tracebacks in normal cases
-
-Not fully implemented yet:
-- full `bool` support
-- full `float` support as a first-class type
-- functions
-- `while`
-- AST-based parser/executor
-- source positions for errors (line/column)
-
-## Project Structure
-
-- `main.py` — CLI entrypoint
-- `core/parser.py` — tokenizer
-- `core/executor.py` — instruction reader and executor
-- `core/runtime.py` — runtime singleton
-- `core/errors.py` — Origin error classes
-- `commands/advanced.py` — built-in commands and control flow
-- `variables/factory.py` — variable/value parsing and expression handling
-- `memory/memory.py` — variable storage
-- `language_syntax_overview.md` — extra syntax notes
-
-## Run
+Щоб запустити програму на Origin, використовуйте CLI:
 
 ```bash
-python3 main.py file.ogn
+python3 main.py <шлях_до_файлу>.ogn
 ```
 
-If no file is passed, the interpreter prints:
+Якщо у вашому коді є помилка, Origin виведе детальне повідомлення з номером рядка та колонки.
 
-```text
-FileError: Потрібно передати шлях до файлу програми
-```
+---
 
-## Language Syntax
+## 📝 Основи синтаксису
 
-### Variable Declaration
+### 1. Змінні та Типи
+Кожна змінна в Origin має бути оголошена з явним типом. 
+*   **int** — для всіх чисел (цілих та дробових).
+*   **str** — для текстових рядків.
 
-Every variable declaration must include an explicit type.
+**Важливо:** Кожна інструкція повинна закінчуватися крапкою з комою `;`.
 
 ```origin
 int x = 10;
 str name = "Ihor";
 ```
 
-Re-typing is allowed, but the type keyword must still be written explicitly.
-
+Ви можете змінити тип змінної пізніше, але для цього потрібно знову написати ключове слово типу:
 ```origin
-int value = 10;
-str value = "ten";
+int value = 5;
+str value = "п'ять"; // Перетипізація дозволена
 ```
 
-## Types
-
-Currently stable:
-- `int`
-- `str`
-
-Notes:
-- `int` is currently used for numeric values in the interpreter
-- `bool` and `float` appear in some places in the codebase, but they are not complete language features yet
-
-## Print
-
-`print` outputs values to the console.
+### 2. Вивід у консоль (print)
+Функція `print` в Origin має особливий синтаксис:
+*   Коми не використовуються.
+*   Щоб додати пробіл між значеннями, використовуйте зворотний слеш `\`.
+*   Вирази всередині `print` мають бути обгорнуті у фігурні дужки `{}`.
 
 ```origin
-print("Hello");
-print(x);
-print("Hello" \ name);
+int age = 20;
+print("Привіт," \ "мені" \ {age} \ "років");
+// Результат: Привіт, мені 20 років
 ```
 
-Rules:
-- commas are not used in `print`
-- spaces are written with `\`
-- expressions can be embedded with `{}`
-
-Examples:
+### 3. Ввід даних (scan) та Типи (type)
+Ви можете зчитувати дані від користувача та перевіряти типи змінних:
 
 ```origin
-int x = 5;
-print({x + 5});
-print("Result" \ {x * 2});
+print("Введіть ваше ім'я:");
+str user_name = (scan(str));
+
+print("Твій тип імені:" \ (type(user_name)));
 ```
 
-## Built-in Functions
+---
 
-### `type()`
+## 📂 Області видимості (Scopes)
 
-Returns the variable type.
+В Origin v0.1 реалізована система областей видимості:
+*   Змінні, створені всередині `if` або `for`, є **локальними** і зникають після завершення блоку.
+*   Ви можете "затінювати" глобальні змінні локальними.
 
-```origin
-int x = 5;
-str t = (type(x));
-print(t);
-```
+---
 
-### `scan()`
+## 🔄 Керування потоком
 
-Reads user input.
-
-```origin
-int age = (scan(int));
-str name = (scan(str));
-```
-
-If `scan(int)` receives a non-integer value, Origin raises a runtime error.
-
-## If
-
-### Basic `if`
+### Умови (if / else)
+Блок умови починається зі слова `start` і закінчується `end;`.
 
 ```origin
-int x = 5;
+int x = 15;
 
-if x < 10 start
-    print("small");
-end;
-```
-
-### `if / else`
-
-```origin
-int x = 12;
-
-if x < 10 start
-    print("small");
+if x > 10 start
+    print("Число велике");
 else
-    print("big");
+    print("Число маленьке");
 end;
 ```
 
-### Expression Conditions
+### Цикли (for)
+Цикл `for` складається з 4 частин: ініціалізація, умова, крок та тіло.
 
 ```origin
-int x = 5;
-
-if {x + 2} == 7 start
-    print("match");
-else
-    print("no match");
+for int i = 1, i <= 5, int i = {i + 1},
+    print("Ітерація:" \ i);
 end;
+// Змінна 'i' зникне після завершення циклу
 ```
 
-### String Comparison
+---
 
-```origin
-str name = "Ihor";
+## ⚠️ Система помилок
 
-if name == "Ihor" start
-    print("hello");
-end;
-```
+Origin v0.1 надає інформативні повідомлення про помилки, які допомагають швидко знайти проблему:
 
-### Nested `if`
+*   **SyntaxError**: Порушення правил мови (наприклад, забута `;`).
+*   **NameError**: Використання змінної, яка не була оголошена.
+*   **TypeError**: Спроба присвоїти значення неправильного типу (наприклад, текст у змінну `int`).
+*   **RuntimeError**: Помилка під час виконання програми (наприклад, некоректний ввід у `scan`).
 
-```origin
-int x = 5;
+Приклад виводу:
+`NameError: [4:11] Змінна 'unknown_variable' не знайдена`
 
-if x < 10 start
-    if x == 5 start
-        print("nested-true");
-    else
-        print("nested-false");
-    end;
-else
-    print("outer-false");
-end;
-```
+---
 
-## For
-
-`for` has four parts:
-1. initialization
-2. condition
-3. update
-4. body
-
-Syntax:
-
-```origin
-for int i = 0, i < 10, int i = {i + 1},
-    print(i);
-end;
-```
-
-Example with nested `if`:
-
-```origin
-for int i = 0, i <= 11, int i = {i + 1},
-    if i > 4 start
-        print(i);
-    end;
-end;
-```
-
-Example with `if/else` inside `for`:
-
-```origin
-for int i = 0, i < 4, int i = {i + 1},
-    if i == 2 start
-        print("two");
-    else
-        print(i);
-    end;
-end;
-```
-
-## Expressions
-
-Expressions are currently evaluated inside `{}`.
-
-```origin
-int x = 3;
-int y = {x + 7};
-print({y * 2});
-```
-
-This is also used in loop updates:
-
-```origin
-for int i = 0, i < 3, int i = {i + 1},
-    print(i);
-end;
-```
-
-## Error System
-
-Origin now has its own error layer.
-
-Current error types:
-- `SyntaxError`
-- `NameError`
-- `TypeError`
-- `RuntimeError`
-- `FileError`
-- `InternalError`
-
-Examples:
-
-```text
-NameError: Змінна 'x' не існує
-TypeError: Змінна 'x' має тип int
-SyntaxError: Умова має бути у форматі left OP right
-FileError: Файл 'file.ogn' не знайдено
-```
-
-`InternalError` is reserved for unexpected interpreter failures inside Python.
-
-## Example Program
+## 🌟 Приклад повної програми
 
 ```origin
 int total = 0;
-str label = "sum:";
+print("Скільки разів повторити?");
+int limit = (scan(int));
 
-for int i = 1, i <= 5, int i = {i + 1},
+for int i = 1, i <= limit, int i = {i + 1},
     int total = {total + i};
-
-    if total > 6 start
-        print(label \ total \ "large");
+    
+    if total > 10 start
+        print("Поточна сума:" \ total \ "(вже багато!)");
     else
-        print(label \ total \ "small");
+        print("Поточна сума:" \ total);
     end;
 end;
 
-str total_type = (type(total));
-print("type:" \ total_type);
+print("Готово! Фінальна сума:" \ total);
 ```
 
-## Known Limitations
+---
 
-- execution is still largely token-based, not AST-based
-- parser errors do not yet include line and column
-- some syntax is strict and low-level by design
-- command parsing is still minimalistic
-- there is no module system or function system yet
-
-## Main.py Assessment
-
-`main.py` is currently good enough for a small interpreter:
-- it works as a real CLI entrypoint
-- it reads source files safely
-- it converts language errors into Origin-style messages
-- it returns a non-zero exit code on failure
-
-What can be improved later:
-- print errors to `stderr`
-- add CLI flags
-- add a REPL mode
-- add a `--no-timing` mode
-- add debug/token dump modes
-
-## Next Recommended Steps
-
-1. Add line and column tracking to tokens and errors.
-2. Stabilize `bool` and `float` as real language types.
-3. Move from token-driven execution toward AST.
-4. Add `while` and functions.
-5. Add tests for syntax, runtime, and nested control flow.
-
-## Version
-
-Current documented state: `0.1`.
+## 🚀 Плани на версію 0.2
+*   Підтримка циклу `while`.
+*   Власні функції (`func`).
+*   Повноцінна підтримка типів `bool` та `float`.
+*   Масиви та об'єкти.

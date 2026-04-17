@@ -14,7 +14,7 @@ token_spec = [
     ('RBRACE', r'\}'),
     ('SEMICOL', r';'),
     ('COMMA', r','),
-    ('SKIP', r'[ \t]+'),
+    ('SKIP', r'[ \t\n\r]+'),
     ('BACKSLASH', r'\\'),
 ]
 
@@ -39,7 +39,7 @@ COMMANDS = {
 def parser(strings):
     tokens = []
 
-    for line in strings:
+    for line_num, line in enumerate(strings, 1):
         pos = 0
         while pos < len(line):
             match = None
@@ -50,22 +50,24 @@ def parser(strings):
 
                 if m:
                     text = m.group(0)
+                    column = pos + 1
 
                     if tok_type == "ID":
                         if text in TYPES:
-                            tokens.append(("TYPE", text))
+                            tokens.append(("TYPE", text, line_num, column))
                         elif text in COMMANDS:
-                            tokens.append(("COMMAND", text))
+                            tokens.append(("COMMAND", text, line_num, column))
                         else:
-                            tokens.append(("ID", text))
+                            tokens.append(("ID", text, line_num, column))
                     elif tok_type != 'SKIP':
-                        tokens.append((tok_type, text))
+                        tokens.append((tok_type, text, line_num, column))
 
                     pos = m.end(0)
                     match = True
                     break
 
             if not match:
-                raise OriginSyntaxError(f"Невідомий символ: {line[pos]}")
+                # Якщо символ невідомий, ми тепер точно знаємо де він
+                raise OriginSyntaxError(f"Невідомий символ: {line[pos]}", line=line_num, column=pos+1)
 
     return tokens

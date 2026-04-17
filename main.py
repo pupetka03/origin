@@ -8,12 +8,7 @@ from core.executor import executor
 def open_file(file_path):
     try:
         with open(file_path, "r", encoding="utf-8") as source_file:
-            code = []
-            for line in source_file:
-                stripped_line = line.strip()
-                if stripped_line:
-                    code.append(stripped_line)
-            return code
+            return source_file.readlines()
     except FileNotFoundError:
         raise OriginFileError(f"Файл '{file_path}' не знайдено") from None
     except OSError as exc:

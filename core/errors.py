@@ -1,12 +1,18 @@
 class OriginLanguageError(Exception):
     error_type = "OriginError"
 
-    def __init__(self, message):
+    def __init__(self, message, line=None, column=None):
         super().__init__(message)
         self.message = message
+        self.line = line
+        self.column = column
 
     def __str__(self):
-        return self.message
+        res = ""
+        if self.line is not None:
+            res += f"[{self.line}:{self.column}] "
+        res += self.message
+        return res
 
 
 class OriginSyntaxError(OriginLanguageError):

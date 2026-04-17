@@ -55,22 +55,29 @@ def resolve_value(tokens):
     if not tokens:
         raise OriginSyntaxError("Порожнє значення в умові")
 
-    if tokens[0][0] == "LBRACE":
+    first_token = tokens[0]
+    token_type, token_value, *pos_info = first_token
+    line = pos_info[0] if pos_info else None
+    col = pos_info[1] if len(pos_info) > 1 else None
+
+    if token_type == "LBRACE":
         value, pos = parse_expression_block(tokens, 0)
         if pos != len(tokens):
-            raise OriginSyntaxError("Некоректний вираз у {}")
+            raise OriginSyntaxError("Некоректний вираз у {}", line=line, column=col)
         return normalize_value(value)
 
     if len(tokens) == 1:
-        token_type, token_value = tokens[0]
         if token_type == "NUMBER":
             return normalize_value(token_value)
         if token_type == "STRING":
             return token_value.strip('"')
         if token_type == "ID":
-            return normalize_value(memory.get(token_value).const())
+            try:
+                return normalize_value(memory.get(token_value).const())
+            except Exception:
+                raise OriginNameError(f"Змінна '{token_value}' не знайдена", line=line, column=col)
 
-    raise OriginSyntaxError(f"Не вдалося обчислити значення: {tokens}")
+    raise OriginSyntaxError(f"Не вдалося обчислити значення: {token_value}", line=line, column=col)
 
 
 def evaluate_condition_tokens(tokens):
@@ -79,7 +86,8 @@ def evaluate_condition_tokens(tokens):
     operator_value = None
     comparison_ops = {"<", ">", "==", "!=", "<=", ">="}
 
-    for index, (token_type, token_value) in enumerate(tokens):
+    for index, token in enumerate(tokens):
+        token_type, token_value, *pos_info = token
         if token_type == "LBRACE":
             brace_depth += 1
         elif token_type == "RBRACE":
@@ -96,7 +104,10 @@ def evaluate_condition_tokens(tokens):
     right_tokens = tokens[operator_index + 1:]
 
     if not left_tokens or not right_tokens:
-        raise OriginSyntaxError("Умова має бути у форматі left OP right")
+        # Беремо позицію оператора для помилки
+        token_type, token_value, *pos_info = tokens[operator_index] if operator_index is not None else (None, None)
+        l, c = (pos_info[0], pos_info[1]) if pos_info else (None, None)
+        raise OriginSyntaxError("Умова має бути у форматі left OP right", line=l, column=c)
 
     left = resolve_value(left_tokens)
     right = resolve_value(right_tokens)
@@ -113,14 +124,19 @@ def type_v(var):
     if not args:
         raise OriginSyntaxError("type: очікується аргумент")
 
-    token_type, token_value = args[0]
+    token_type, token_value, *pos_info = args[0]
+    l, c = (pos_info[0], pos_info[1]) if pos_info else (None, None)
+
     if token_type == "ID":
-        return memory.get(token_value).print_type()
+        try:
+            return memory.get(token_value).print_type()
+        except Exception:
+            raise OriginNameError(f"Змінна '{token_value}' не знайдена", line=l, column=c)
     if token_type == "NUMBER":
-        return int
+        return "int"
     if token_type == "STRING":
-        return str
-    raise OriginSyntaxError("type: некоректний аргумент")
+        return "str"
+    raise OriginSyntaxError("type: некоректний аргумент", line=l, column=c)
 
 
 def printf(var):
@@ -129,7 +145,10 @@ def printf(var):
     i = 0
 
     while i < len(args):
-        token_type, token_value = args[i]
+        token = args[i]
+        token_type, token_value, *pos_info = token
+        line = pos_info[0] if pos_info else None
+        col = pos_info[1] if len(pos_info) > 1 else None
 
         if token_type == "SEMICOL":
             break
@@ -138,7 +157,10 @@ def printf(var):
             i += 1
             continue
         if token_type == "ID":
-            result += str(memory.get(token_value).const()).strip('"')
+            try:
+                result += str(memory.get(token_value).const()).strip('"')
+            except Exception:
+                raise OriginNameError(f"Змінна '{token_value}' не знайдена", line=line, column=col)
             i += 1
             continue
         if token_type == "NUMBER":
@@ -154,7 +176,7 @@ def printf(var):
             result += " "
             i += 1
             continue
-        raise OriginSyntaxError(f"print: неочікуваний токен '{token_value}'")
+        raise OriginSyntaxError(f"print: неочікуваний токен '{token_value}'", line=line, column=col)
 
     print(result)
     return None
@@ -163,9 +185,13 @@ def printf(var):
 def scanf(var):
     args = command_arguments(var)
     input_type = None
-    for token_type, token_value in args:
+    first_pos = (None, None)
+
+    for token in args:
+        token_type, token_value, *pos_info = token
         if token_type == "TYPE":
             input_type = token_value
+            first_pos = (pos_info[0], pos_info[1]) if pos_info else (None, None)
             break
 
     if input_type == "int":
@@ -173,10 +199,10 @@ def scanf(var):
         try:
             return int(raw)
         except ValueError:
-            raise OriginRuntimeError(f"Неможливо перетворити '{raw}' у int") from None
+            raise OriginRuntimeError(f"Неможливо перетворити '{raw}' у int", line=first_pos[0], column=first_pos[1]) from None
     if input_type == "str":
         return input()
-    raise OriginSyntaxError("scan: підтримуються лише int і str")
+    raise OriginSyntaxError("scan: підтримуються лише int і str", line=first_pos[0], column=first_pos[1])
 
 
 def iff(var):
@@ -186,7 +212,7 @@ def iff(var):
     depth = 0
 
     for index in range(1, len(var)):
-        token_type, token_value = var[index]
+        token_type, token_value, *pos_info = var[index]
 
         if token_type == "COMMAND" and token_value in {"if", "for", "while", "func"}:
             depth += 1
@@ -198,7 +224,8 @@ def iff(var):
             break
 
     if start_index is None:
-        raise OriginSyntaxError("if: очікується ключове слово start")
+        l, c = (var[0][2], var[0][3]) if len(var[0]) > 3 else (None, None)
+        raise OriginSyntaxError("if: очікується ключове слово start", line=l, column=c)
 
     condition_tokens = var[1:start_index]
     block_tokens = var[start_index + 1:]
@@ -206,8 +233,9 @@ def iff(var):
     if block_tokens and block_tokens[-1][0] == "SEMICOL":
         block_tokens = block_tokens[:-1]
 
-    if not block_tokens or block_tokens[-1] != ("COMMAND", "end"):
-        raise OriginSyntaxError("if: очікується завершення через end;")
+    if not block_tokens or block_tokens[-1][:2] != ("COMMAND", "end"):
+        l, c = (var[0][2], var[0][3]) if len(var[0]) > 3 else (None, None)
+        raise OriginSyntaxError("if: очікується завершення через end;", line=l, column=c)
 
     block_tokens = block_tokens[:-1]
 
@@ -216,8 +244,8 @@ def iff(var):
     current_branch = true_branch
     nested_depth = 0
 
-    for token_type, token_value in block_tokens:
-        token = (token_type, token_value)
+    for token in block_tokens:
+        token_type, token_value, *pos_info = token
 
         if token_type == "COMMAND" and token_value in {"if", "for", "while", "func"}:
             nested_depth += 1
@@ -235,9 +263,17 @@ def iff(var):
         current_branch.append(token)
 
     if evaluate_condition_tokens(condition_tokens):
-        execute_tokens(true_branch)
+        memory.push_scope()
+        try:
+            execute_tokens(true_branch)
+        finally:
+            memory.pop_scope()
     elif false_branch:
-        execute_tokens(false_branch)
+        memory.push_scope()
+        try:
+            execute_tokens(false_branch)
+        finally:
+            memory.pop_scope()
 
 
 def forf(var):
@@ -251,11 +287,12 @@ def forf(var):
         block_commands = {"for", "if", "while", "func"}
 
         i = 0
-        if tokens and tokens[0] == ("COMMAND", "for"):
+        if tokens and tokens[0][:2] == ("COMMAND", "for"):
             i = 1
 
         while i < len(tokens):
-            tok_type, tok_val = tokens[i]
+            token = tokens[i]
+            tok_type, tok_val, *pos_info = token
 
             if tok_type == "LBRACE":
                 depth_brace += 1
@@ -278,7 +315,7 @@ def forf(var):
                 i += 1
                 continue
 
-            current.append((tok_type, tok_val))
+            current.append(token)
             i += 1
 
         if current:
@@ -287,44 +324,57 @@ def forf(var):
         return sections
 
     def get_condition_value(token):
-        tok_type, tok_val = token
+        tok_type, tok_val, *pos_info = token
+        l, c = (pos_info[0], pos_info[1]) if pos_info else (None, None)
         if tok_type == "ID":
-            return int(memory.get(tok_val).const())
+            try:
+                return int(memory.get(tok_val).const())
+            except Exception:
+                raise OriginNameError(f"Змінна '{tok_val}' не знайдена", line=l, column=c)
         if tok_type == "NUMBER":
             return int(tok_val)
-        raise OriginSyntaxError(f"Невідомий токен в умові: {token}")
+        raise OriginSyntaxError(f"Невідомий токен в умові: {tok_val}", line=l, column=c)
 
     sections = split_for_sections(var)
     if len(sections) < 4:
-        raise OriginSyntaxError(f"for: очікується 4 секції, отримано {len(sections)}")
+        l, c = (var[0][2], var[0][3]) if len(var[0]) > 3 else (None, None)
+        raise OriginSyntaxError(f"for: очікується 4 секції, отримано {len(sections)}", line=l, column=c)
 
     init_tokens = sections[0]
     condition_tokens = sections[1]
     update_tokens = sections[2]
     body_tokens = sections[3]
 
-    obj = create_variables(init_tokens)
-    memory.declare(obj["type"], obj["name"], obj["value"])
+    # Створюємо нову область видимості для всього циклу
+    memory.push_scope()
+    try:
+        obj = create_variables(init_tokens)
+        memory.declare(obj["type"], obj["name"], obj["value"])
 
-    if len(condition_tokens) < 3:
-        raise OriginSyntaxError("for: некоректна умова")
+        if len(condition_tokens) < 3:
+            l, c = (condition_tokens[0][2], condition_tokens[0][3]) if condition_tokens and len(condition_tokens[0]) > 3 else (None, None)
+            raise OriginSyntaxError("for: некоректна умова", line=l, column=c)
 
-    cond_left_tok = condition_tokens[0]
-    cond_op = condition_tokens[1][1]
-    cond_right_tok = condition_tokens[2]
+        cond_left_tok = condition_tokens[0]
+        cond_op = condition_tokens[1][1]
+        cond_right_tok = condition_tokens[2]
 
-    def check_condition():
-        left = get_condition_value(cond_left_tok)
-        right = get_condition_value(cond_right_tok)
-        return eval_condition(left, cond_op, right)
+        def check_condition():
+            left = get_condition_value(cond_left_tok)
+            right = get_condition_value(cond_right_tok)
+            return eval_condition(left, cond_op, right)
 
-    def update_var():
-        var_data = create_variables(update_tokens)
-        memory.declare(var_data["type"], var_data["name"], var_data["value"])
+        def update_var():
+            var_data = create_variables(update_tokens)
+            memory.declare(var_data["type"], var_data["name"], var_data["value"])
 
-    while check_condition():
-        execute_tokens(body_tokens)
-        update_var()
+        while check_condition():
+            # Всередині тіла циклу можна було б робити ще один push_scope, 
+            # але зазвичай достатньо одного на весь цикл (разом з лічильником)
+            execute_tokens(body_tokens)
+            update_var()
+    finally:
+        memory.pop_scope()
 
 
 commands = {
